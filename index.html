@@ -6,7 +6,7 @@
 <title>Katman Katman — 3B Yatak Kesiti</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Cormorant+Garamond:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root{
     --navy:#17233D;
@@ -164,6 +164,7 @@
   }
   #wmTile.on{display:block}
 
+  body.room-on{background:#DDD4C6}
   #loading{
     position:absolute;inset:0;display:grid;place-items:center;z-index:9;
     font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#7D8798;
@@ -242,7 +243,7 @@
     <div id="wmTile" aria-hidden="true"></div>
 
     <div class="titleblock">
-      <p class="eyebrow">3B kesit · <b>Nova Hybrid 275</b></p>
+      <p class="eyebrow">3B kesit · <b>WellMatt Nova Hybrid 275</b></p>
       <h1>Katman katman<em>ne uyuduğunuzu görün</em></h1>
       <p class="lede">Yatağı sürükleyerek her açıdan inceleyin. <b>Katmanlara ayır</b> dediğinizde kesit açılır; numaralı noktalar her katmanın malzemesini ve kalınlığını gösterir.</p>
     </div>
@@ -258,6 +259,7 @@
 
     <div id="toolbar">
       <button id="btnOpen" class="pulse"><span class="lbl-long">Katmanlara ayır</span><span class="lbl-short">Ayır</span></button>
+      <button id="btnRoom" class="on"><span class="lbl-long">Odayı gizle</span><span class="lbl-short">Oda</span></button>
       <button id="btnSpin"><span class="lbl-long">Döndür</span><span class="lbl-short">Döndür</span></button>
       <button id="btnReset"><span class="lbl-long">Görünümü sıfırla</span><span class="lbl-short">Sıfırla</span></button>
     </div>
@@ -289,7 +291,7 @@
    ============================================================ */
 const WM = {
   marka:    "WELLMATT",              // köşedeki ana yazı
-  altYazi:  "wellmatt.com",          // altındaki küçük satır
+  altYazi:  "DOĞAL YATAK",           // altındaki küçük satır
   kose:     true,                    // 3B sahneye gömülü köşe filigranı
   koseOpak: 0.42,                    // 0–1 arası görünürlük
   desen:    false,                   // çapraz tekrarlı filigran (ekran görüntüsüne karşı)
@@ -387,13 +389,16 @@ function texShadow(){
 const canvas = document.getElementById("c");
 const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.98;
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 400);
 
-scene.add(new THREE.HemisphereLight(0xffffff, 0x9aa3b0, 0.85));
-const key = new THREE.DirectionalLight(0xffffff, 0.72); key.position.set(-14,26,20); scene.add(key);
-const fill = new THREE.DirectionalLight(0xdfe6f0, 0.34); fill.position.set(22,12,-16); scene.add(fill);
-const rim  = new THREE.DirectionalLight(0xffffff, 0.20); rim.position.set(8,6,26); scene.add(rim);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8f98a6, 0.50));
+const key = new THREE.DirectionalLight(0xffffff, 0.52); key.position.set(-14,26,20); scene.add(key);
+const fill = new THREE.DirectionalLight(0xdfe6f0, 0.20); fill.position.set(22,12,-16); scene.add(fill);
+const rim  = new THREE.DirectionalLight(0xffffff, 0.12); rim.position.set(8,6,26); scene.add(rim);
 
 const root = new THREE.Group(); scene.add(root);
 
@@ -472,7 +477,7 @@ const shadow = new THREE.Mesh(
   new THREE.PlaneGeometry(W*1.9, D*2.1),
   new THREE.MeshBasicMaterial({map:texShadow(), transparent:true, depthWrite:false})
 );
-shadow.rotation.x = -Math.PI/2; shadow.position.set(-1.5,-0.03,0); root.add(shadow);
+shadow.rotation.x = -Math.PI/2; shadow.position.set(-1.5,0.02,0); scene.add(shadow);
 
 /* ---- katman gövdeleri ---- */
 const QUILT = texQuilt(), FIBER = texFiber(), FOAM = texFoam(), NAVY = texNavy();
@@ -533,6 +538,200 @@ const tag = new THREE.Mesh(new THREE.BoxGeometry(0.9,0.5,0.05), new THREE.MeshSt
 tag.position.set(-W/2+3.2, bandH*0.42, D/2+0.14); band.add(tag);
 
 /* ============================================================
+   ODA — zemin, duvarlar, karyola, pencere
+   ============================================================ */
+const BASE_TOP = 4.2;                       // divan üst yüzeyi = yatağın oturduğu kot
+const roomGroup = new THREE.Group(); scene.add(roomGroup);
+
+function texWood(){
+  const c=cv(1024), x=c.getContext("2d");
+  x.fillStyle="#B99A72"; x.fillRect(0,0,1024,1024);
+  for(let py=0; py<1024; py+=128){
+    const off = (py/128)%2 ? 220 : 0;
+    for(let px=-256; px<1024; px+=384){
+      const w=384, h=128, X=px+off, Y=py;
+      const tone = 12*Math.random()-6;
+      x.fillStyle = "rgb("+(185+tone)+","+(154+tone)+","+(114+tone)+")";
+      x.fillRect(X+1,Y+1,w-2,h-2);
+      for(let i=0;i<26;i++){
+        x.strokeStyle="rgba(120,92,58,"+(Math.random()*.10+.03)+")";
+        x.lineWidth=Math.random()*1.6+.4; x.beginPath();
+        const yy=Y+Math.random()*h;
+        x.moveTo(X,yy); x.bezierCurveTo(X+w*.3,yy+6,X+w*.6,yy-6,X+w,yy+2); x.stroke();
+      }
+      x.strokeStyle="rgba(90,68,42,.35)"; x.lineWidth=2; x.strokeRect(X+1,Y+1,w-2,h-2);
+    }
+  }
+  const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(4,3.5); return t;
+}
+function texWall(){
+  const c=cv(512), x=c.getContext("2d");
+  const g=x.createLinearGradient(0,0,0,512);
+  g.addColorStop(0,"#E9E2D6"); g.addColorStop(1,"#D6CDBE");
+  x.fillStyle=g; x.fillRect(0,0,512,512);
+  for(let i=0;i<9000;i++){
+    x.fillStyle="rgba(0,0,0,"+(Math.random()*.025)+")";
+    x.fillRect(Math.random()*512, Math.random()*512, 2, 2);
+  }
+  const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(2,1); return t;
+}
+function texRug(){
+  const c=cv(512), x=c.getContext("2d");
+  x.fillStyle="#B7BCC4"; x.fillRect(0,0,512,512);
+  for(let i=0;i<14000;i++){
+    x.fillStyle="rgba(255,255,255,"+(Math.random()*.16)+")";
+    x.fillRect(Math.random()*512, Math.random()*512, 3, 1.5);
+  }
+  x.strokeStyle="rgba(70,84,104,.35)"; x.lineWidth=10; x.strokeRect(26,26,460,460);
+  x.strokeStyle="rgba(70,84,104,.18)"; x.lineWidth=4;  x.strokeRect(48,48,416,416);
+  return new THREE.CanvasTexture(c);
+}
+function texGlow(){
+  const c=cv(256), x=c.getContext("2d");
+  const g=x.createLinearGradient(0,0,0,256);
+  g.addColorStop(0,"rgba(255,246,225,.85)"); g.addColorStop(1,"rgba(255,246,225,0)");
+  x.fillStyle=g; x.fillRect(0,0,256,256);
+  const m=x.createLinearGradient(0,0,256,0);
+  m.addColorStop(0,"rgba(0,0,0,.9)"); m.addColorStop(.5,"rgba(0,0,0,0)"); m.addColorStop(1,"rgba(0,0,0,.9)");
+  x.globalCompositeOperation="destination-out"; x.fillStyle=m; x.fillRect(0,0,256,256);
+  return new THREE.CanvasTexture(c);
+}
+
+/* --- oda kabuğu: içten görünen dev kutu --- */
+const RW = 76, RH = 38, RD = 70;
+const wallMat = new THREE.MeshStandardMaterial({color:0xffffff, map:texWall(), roughness:1, side:THREE.BackSide});
+const floorMat= new THREE.MeshStandardMaterial({color:0xffffff, map:texWood(), roughness:.72, side:THREE.BackSide});
+const ceilMat = new THREE.MeshStandardMaterial({color:0xF7F6F3, roughness:1, side:THREE.BackSide});
+const shell = new THREE.Mesh(new THREE.BoxGeometry(RW, RH, RD),
+  [wallMat, wallMat, ceilMat, floorMat, wallMat, wallMat]);
+shell.position.y = RH/2 - 0.01; roomGroup.add(shell);
+
+/* süpürgelik */
+const skirtMat = new THREE.MeshStandardMaterial({color:0xF4F2EE, roughness:.85});
+[[0,-RD/2+0.12,RW,0.24],[0,RD/2-0.12,RW,0.24]].forEach(([x,z,w,d])=>{
+  const s=new THREE.Mesh(new THREE.BoxGeometry(w,1.1,d), skirtMat); s.position.set(x,0.55,z); roomGroup.add(s);
+});
+[[-RW/2+0.12,0,0.24,RD],[RW/2-0.12,0,0.24,RD]].forEach(([x,z,w,d])=>{
+  const s=new THREE.Mesh(new THREE.BoxGeometry(w,1.1,d), skirtMat); s.position.set(x,0.55,z); roomGroup.add(s);
+});
+
+/* halı */
+const rug = new THREE.Mesh(new THREE.PlaneGeometry(38, 32),
+  new THREE.MeshStandardMaterial({map:texRug(), roughness:1}));
+rug.rotation.x=-Math.PI/2; rug.position.set(-1, 0.04, 1); roomGroup.add(rug);
+
+/* --- karyola: divan + ayaklar + başlık --- */
+const fabricMat = new THREE.MeshStandardMaterial({color:0x8E96A3, roughness:.95});
+const woodMat   = new THREE.MeshStandardMaterial({color:0x6B5136, roughness:.6});
+const divan = new THREE.Mesh(new THREE.BoxGeometry(W+0.8, 3.2, D+0.8), fabricMat);
+divan.position.y = BASE_TOP - 1.6; roomGroup.add(divan);
+[[-1,-1],[-1,1],[1,-1],[1,1]].forEach(([sx,sz])=>{
+  const leg=new THREE.Mesh(new THREE.CylinderGeometry(0.34,0.26,1.0,10), woodMat);
+  leg.position.set(sx*(W/2-0.9), 0.5, sz*(D/2-0.9)); roomGroup.add(leg);
+});
+const head = new THREE.Mesh(new THREE.BoxGeometry(0.8, 11, D+1.8), fabricMat);
+head.position.set(-W/2-0.9, 5.5, 0); roomGroup.add(head);
+const headTop = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.4, D+2.0), woodMat);
+headTop.position.set(-W/2-0.9, 11.1, 0); roomGroup.add(headTop);
+
+/* komodin + abajur */
+const stand = new THREE.Mesh(new THREE.BoxGeometry(4.4, 4.0, 4.4), woodMat);
+stand.position.set(-W/2+1.2, 2.0, D/2+4.6); roomGroup.add(stand);
+const lampBase = new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.8,1.2,12), new THREE.MeshStandardMaterial({color:0x2E3742, roughness:.5}));
+lampBase.position.set(stand.position.x, 4.6, stand.position.z); roomGroup.add(lampBase);
+const shade = new THREE.Mesh(new THREE.CylinderGeometry(1.5,1.9,2.4,18,1,true),
+  new THREE.MeshStandardMaterial({color:0xFFF3DC, roughness:1, side:THREE.DoubleSide, emissive:0xFFD9A0, emissiveIntensity:.35}));
+shade.position.set(stand.position.x, 6.4, stand.position.z); roomGroup.add(shade);
+const lampLight = new THREE.PointLight(0xFFD9A0, 0.32, 24, 2);
+lampLight.position.set(stand.position.x, 6.2, stand.position.z); roomGroup.add(lampLight);
+
+/* --- pencere --- */
+const winG = new THREE.Group(); winG.position.set(7, 13, -RD/2+0.15); roomGroup.add(winG);
+const pane = new THREE.Mesh(new THREE.PlaneGeometry(13, 13),
+  new THREE.MeshBasicMaterial({color:0xF4F8FF}));
+winG.add(pane);
+const frameMat = new THREE.MeshStandardMaterial({color:0xFBFAF7, roughness:.75});
+[[0,6.9,14.4,.9],[0,-6.9,14.4,.9],[-6.9,0,.9,14.4],[6.9,0,.9,14.4],[0,0,13,.35],[0,0,.35,13]].forEach(([x,y,w,h])=>{
+  const f=new THREE.Mesh(new THREE.BoxGeometry(w,h,.5), frameMat); f.position.set(x,y,.25); winG.add(f);
+});
+const sill = new THREE.Mesh(new THREE.BoxGeometry(15.5,.5,1.4), frameMat);
+sill.position.set(0,-7.5,.8); winG.add(sill);
+/* pencereden düşen ışık lekesi */
+const beam = new THREE.Mesh(new THREE.PlaneGeometry(13, 17),
+  new THREE.MeshBasicMaterial({map:texGlow(), transparent:true, opacity:.16, depthWrite:false, blending:THREE.AdditiveBlending}));
+beam.rotation.x = -Math.PI/2; beam.rotation.z = 0.2;
+beam.position.set(9.5, 0.08, -12); roomGroup.add(beam);
+/* pencere ışığı */
+const sun = new THREE.DirectionalLight(0xFFF1DC, 0.18);
+sun.position.set(10, 20, -22); roomGroup.add(sun);
+
+/* --- duvar logosu: WellMATT Doğal Yatak --- */
+const LOGO = { ust:["W","ell","MATT"], alt:"DOĞAL YATAK", x:-15, y:17.5, en:20 };
+function texLogo(){
+  const c=document.createElement("canvas"); c.width=1200; c.height=520;
+  const g=c.getContext("2d");
+  function draw(){
+    g.clearRect(0,0,1200,520);
+    g.textBaseline="alphabetic"; g.lineJoin="round";
+    const F=(px)=>"700 "+px+"px 'Cormorant Garamond', Georgia, 'Times New Roman', serif";
+    const sizes=[168,112,168], parts=LOGO.ust;
+    /* üst satır genişliği */
+    let tot=0; parts.forEach((p,i)=>{ g.font=F(sizes[i]); tot+=g.measureText(p).width; });
+    let cx=(1200-tot)/2, base=250;
+    function paint(fn){
+      let px=cx;
+      parts.forEach((p,i)=>{ g.font=F(sizes[i]); fn(p,px,base); px+=g.measureText(p).width; });
+    }
+    /* gövde derinliği (kanal harf hissi) */
+    for(let d=9; d>0; d--){
+      g.fillStyle="rgba(96,74,38,"+(0.10+d*0.02)+")";
+      paint((p,x,y)=>g.fillText(p,x+d*0.5,y+d));
+    }
+    /* yüzey */
+    const grd=g.createLinearGradient(0,base-150,0,base+20);
+    grd.addColorStop(0,"#FFF9E6"); grd.addColorStop(.55,"#F3E3B8"); grd.addColorStop(1,"#DDC286");
+    g.fillStyle=grd; paint((p,x,y)=>g.fillText(p,x,y));
+    g.strokeStyle="rgba(255,255,255,.55)"; g.lineWidth=2;
+    paint((p,x,y)=>g.strokeText(p,x,y));
+
+    /* alt satır — harf aralıklı */
+    const s2=92, sp=13;
+    g.font=F(s2);
+    let w2=0; for(const ch of LOGO.alt) w2+=g.measureText(ch).width+sp;
+    let x2=(1200-w2)/2+sp/2, b2=420;
+    const line2=(dx,dy,style)=>{
+      let px=x2;
+      for(const ch of LOGO.alt){ g.fillStyle=style; g.fillText(ch,px+dx,b2+dy); px+=g.measureText(ch).width+sp; }
+    };
+    for(let d=7; d>0; d--) line2(d*0.4, d*0.8, "rgba(96,74,38,"+(0.10+d*0.02)+")");
+    let px=x2;
+    for(const ch of LOGO.alt){
+      const gg=g.createLinearGradient(0,b2-80,0,b2+12);
+      gg.addColorStop(0,"#FFF9E6"); gg.addColorStop(1,"#DFC68C");
+      g.fillStyle=gg; g.fillText(ch,px,b2); px+=g.measureText(ch).width+sp;
+    }
+  }
+  draw();
+  const t=new THREE.CanvasTexture(c);
+  t.minFilter=THREE.LinearFilter; t.anisotropy=4;
+  if(document.fonts&&document.fonts.ready) document.fonts.ready.then(()=>{ draw(); t.needsUpdate=true; });
+  return t;
+}
+const logoPlane = new THREE.Mesh(
+  new THREE.PlaneGeometry(LOGO.en, LOGO.en*520/1200),
+  new THREE.MeshStandardMaterial({
+    map:texLogo(), transparent:true, roughness:.45, metalness:.12,
+    emissive:0xFFE6AE, emissiveIntensity:.24, depthWrite:false
+  })
+);
+logoPlane.position.set(LOGO.x, LOGO.y, -RD/2+0.35);
+roomGroup.add(logoPlane);
+/* tabelayı yıkayan küçük ışık */
+const logoLight = new THREE.PointLight(0xFFF0D2, 0.20, 30, 2);
+logoLight.position.set(LOGO.x, LOGO.y-5, -RD/2+7);
+roomGroup.add(logoLight);
+
+/* ============================================================
    BÜKME (peel) — açılma miktarı t ile
    ============================================================ */
 function bend(L, t){
@@ -571,9 +770,9 @@ function applyOpen(t){
 /* ============================================================
    KAMERA KONTROLÜ
    ============================================================ */
-const view = { az:-0.66, pol:1.02, zoom:1 };
+const view = { az:-0.66, pol:1.14, zoom:1 };
 const HOME = Object.assign({}, view);
-if(matchMedia("(max-width:640px)").matches){ view.pol = HOME.pol = 0.95; view.az = HOME.az = -0.74; }
+if(matchMedia("(max-width:640px)").matches){ view.pol = HOME.pol = 1.08; view.az = HOME.az = -0.74; }
 let spin=false, dragging=false, px=0, py=0, pinch=0;
 const target = new THREE.Vector3();
 
@@ -585,7 +784,7 @@ function fitRadius(){
   return (R / Math.sin(Math.min(fv,fh)/2)) * 0.71;
 }
 function updateCam(){
-  target.set(-0.5, 1.5 + 2.5*openT, 0);
+  target.set(-0.5, root.position.y + 1.5 + 2.5*openT, 0);
   const rad = fitRadius() * view.zoom;
   const sp = Math.sin(view.pol);
   camera.position.set(
@@ -602,7 +801,7 @@ canvas.addEventListener("pointerdown", e=>{
 canvas.addEventListener("pointermove", e=>{
   if(!dragging) return;
   view.az -= (e.clientX-px)*0.006;
-  view.pol = Math.max(0.18, Math.min(1.48, view.pol - (e.clientY-py)*0.005));
+  view.pol = Math.max(0.55, Math.min(1.44, view.pol - (e.clientY-py)*0.005));
   px=e.clientX; py=e.clientY;
 });
 ["pointerup","pointercancel","pointerleave"].forEach(ev=>canvas.addEventListener(ev, ()=>{dragging=false;canvas.classList.remove("dragging");}));
@@ -669,7 +868,22 @@ function select(n){
 document.getElementById("detailClose").addEventListener("click", ()=>select(active));
 
 /* toolbar */
-const btnOpen=document.getElementById("btnOpen"), btnSpin=document.getElementById("btnSpin"), btnReset=document.getElementById("btnReset");
+const btnOpen=document.getElementById("btnOpen"), btnSpin=document.getElementById("btnSpin"), btnReset=document.getElementById("btnReset"), btnRoom=document.getElementById("btnRoom");
+
+let roomOn = true;
+function setRoom(on){
+  roomOn = on;
+  roomGroup.visible = on;
+  root.position.y = on ? BASE_TOP : 0;
+  shadow.material.opacity = on ? 0.55 : 1;
+  shadow.position.y = on ? 0.10 : 0.02;
+  document.body.classList.toggle("room-on", on);
+  scene.background = on ? new THREE.Color(0xDDD4C6) : null;
+  btnRoom.classList.toggle("on", on);
+  btnRoom.querySelector(".lbl-long").textContent  = on ? "Odayı gizle" : "Odayı göster";
+  btnRoom.querySelector(".lbl-short").textContent = on ? "Oda" : "Oda";
+}
+btnRoom.addEventListener("click", ()=> setRoom(!roomOn));
 const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
 let openT = 0, openTarget = 0;
 function setOpenLabel(){
@@ -725,7 +939,17 @@ function frame(ts){
   renderer.render(scene, camera);
 }
 
+setRoom(true);
+/* renk dokularını sRGB olarak işaretle — yoksa ton eşlemesi soluk çıkar */
+scene.traverse(o=>{
+  if(!o.material) return;
+  (Array.isArray(o.material) ? o.material : [o.material]).forEach(m=>{
+    if(m.map && m.map !== shadow.material.map){ m.map.encoding = THREE.sRGBEncoding; m.map.needsUpdate = true; }
+    m.needsUpdate = true;
+  });
+});
 applyOpen(openT);
+setOpenLabel();
 resize();
 requestAnimationFrame(frame);
 setTimeout(()=>{ const l=document.getElementById("loading"); l.style.opacity=0; setTimeout(()=>l.remove(),600); }, 350);
