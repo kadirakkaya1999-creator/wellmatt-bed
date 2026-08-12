@@ -54,15 +54,21 @@
   #markers{position:absolute;inset:0;z-index:2;pointer-events:none}
   .marker{
     position:absolute;left:0;top:0;pointer-events:auto;
-    width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;
+    width:30px;height:30px;margin:-15px 0 0 -15px;padding:0;border:0;background:none;
+    cursor:pointer;transition:opacity .4s ease
+  }
+  .marker[hidden]{display:none}
+  .marker .dot{
+    width:30px;height:30px;border-radius:50%;
     display:grid;place-items:center;border:1.5px solid rgba(255,255,255,.7);
     background:rgba(23,35,61,.66);backdrop-filter:blur(3px);
     color:#fff;font-family:var(--mono);font-size:12px;font-weight:500;
-    cursor:pointer;transition:transform .18s cubic-bezier(.2,.8,.3,1),background .18s,box-shadow .18s;
+    transition:transform .18s cubic-bezier(.2,.8,.3,1),background .18s,box-shadow .18s;
     box-shadow:0 3px 10px rgba(12,18,32,.28)
   }
-  .marker:hover,.marker:focus-visible{background:var(--navy);transform:scale(1.18);outline:none;box-shadow:0 0 0 4px rgba(127,169,201,.45)}
-  .marker.on{background:var(--sky);border-color:#fff;transform:scale(1.22);box-shadow:0 0 0 5px rgba(127,169,201,.32)}
+  .marker:hover .dot,.marker:focus-visible .dot{background:var(--navy);transform:scale(1.18);box-shadow:0 0 0 4px rgba(127,169,201,.45)}
+  .marker:focus-visible{outline:none}
+  .marker.on .dot{background:var(--sky);border-color:#fff;transform:scale(1.22);box-shadow:0 0 0 5px rgba(127,169,201,.32)}
   .marker .tip{
     position:absolute;left:38px;top:50%;transform:translateY(-50%) translateX(-6px);
     white-space:nowrap;background:rgba(12,18,32,.92);color:#fff;
@@ -104,6 +110,12 @@
   }
   #toolbar button:hover{background:rgba(23,35,61,.07)}
   #toolbar button.on{background:var(--navy);color:#fff}
+  #toolbar button.pulse{background:var(--navy);color:#fff;animation:pulse 2.6s ease-in-out infinite}
+  @keyframes pulse{
+    0%,100%{box-shadow:0 0 0 0 rgba(127,169,201,.55)}
+    50%{box-shadow:0 0 0 7px rgba(127,169,201,0)}
+  }
+  @media (prefers-reduced-motion: reduce){ #toolbar button.pulse{animation:none} }
   #toolbar button:focus-visible{outline:2px solid var(--sky);outline-offset:1px}
   .hint{
     position:absolute;left:50%;bottom:8px;transform:translateX(-50%);z-index:3;
@@ -158,17 +170,68 @@
     transition:opacity .5s
   }
 
-  @media (max-width:900px){
-    #app{grid-template-columns:1fr;grid-template-rows:1fr auto}
-    #panel{border-left:0;border-top:1px solid var(--line);max-height:38vh}
-    .titleblock{top:18px;left:18px;max-width:70%}
-    h1{font-size:26px}
+  /* ---------- tablet ---------- */
+  @media (max-width:1000px){
+    #app{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto}
+    #panel{border-left:0;border-top:1px solid var(--line);max-height:36dvh}
+    .ruler{padding:8px 0;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+    .band .bar{height:calc(var(--h) * .55)}
+    .titleblock{top:16px;left:16px;max-width:78%}
+    h1{font-size:clamp(21px,5.4vw,30px)}
     .lede{display:none}
-    #detail{left:14px;right:14px;bottom:80px;width:auto}
-    .ruler{padding:8px 0}
     .hint{display:none}
-    #toolbar{bottom:14px}
   }
+
+  /* ---------- telefon ---------- */
+  @media (max-width:640px){
+    .eyebrow{font-size:9.5px;letter-spacing:.16em;margin-bottom:6px}
+    h1{font-size:20px;line-height:1.04}
+    .titleblock{top:12px;left:14px;max-width:88%}
+
+    .marker{width:34px;height:34px;margin:-17px 0 0 -17px}
+    .marker .dot{width:34px;height:34px;font-size:13px}
+    .marker .tip{display:none}                 /* dokununca kart açılıyor */
+
+    #detail{
+      left:8px;right:8px;bottom:8px;width:auto;
+      max-height:52dvh;overflow:auto;overscroll-behavior:contain;
+      padding:16px 16px 18px;border-radius:4px
+    }
+    #detail h2{font-size:20px}
+    #detail p{font-size:13px;margin:10px 0 12px}
+    .close{top:10px;right:10px}
+
+    #toolbar{
+      bottom:10px;left:8px;right:8px;transform:none;
+      justify-content:center;gap:4px;padding:5px
+    }
+    #toolbar button{padding:10px 11px;font-size:12px;flex:0 1 auto}
+    .lbl-long{display:none}
+    .lbl-short{display:inline}
+
+    /* detay kartı açıkken butonlar çekilsin, üst üste binmesin */
+    body.detail-open #toolbar{opacity:0;transform:translateY(16px);pointer-events:none}
+    #toolbar{transition:opacity .25s ease,transform .25s ease}
+
+    #panel{max-height:33dvh}
+    .panel-head{padding:14px 16px 10px}
+    .band{padding:0 14px;grid-template-columns:28px 1fr auto;gap:9px}
+    .band .nm{font-size:12.5px}
+    .band .bar{height:calc(var(--h) * .42);margin:5px 0 7px}
+    .panel-foot{padding:11px 16px 14px}
+    .panel-foot strong{font-size:16px}
+  }
+
+  /* ---------- yatay telefon: panel yana dönsün ---------- */
+  @media (max-height:520px) and (orientation:landscape){
+    #app{grid-template-columns:minmax(0,1fr) 250px;grid-template-rows:1fr}
+    #panel{border-left:1px solid var(--line);border-top:0;max-height:none}
+    .titleblock .lede{display:none}
+    h1{font-size:18px}
+    #detail{max-height:60dvh}
+  }
+
+  .lbl-short{display:none}
 </style>
 </head>
 <body>
@@ -181,7 +244,7 @@
     <div class="titleblock">
       <p class="eyebrow">3B kesit · <b>Nova Hybrid 275</b></p>
       <h1>Katman katman<em>ne uyuduğunuzu görün</em></h1>
-      <p class="lede">Numaralı noktalara dokunun; her katmanın malzemesini, kalınlığını ve ne işe yaradığını açar. Sahneyi sürükleyerek döndürün.</p>
+      <p class="lede">Yatağı sürükleyerek her açıdan inceleyin. <b>Katmanlara ayır</b> dediğinizde kesit açılır; numaralı noktalar her katmanın malzemesini ve kalınlığını gösterir.</p>
     </div>
 
     <div id="detail" role="dialog" aria-live="polite">
@@ -194,9 +257,9 @@
     </div>
 
     <div id="toolbar">
-      <button id="btnOpen" class="on">Katmanları kapat</button>
-      <button id="btnSpin">Döndür</button>
-      <button id="btnReset">Görünümü sıfırla</button>
+      <button id="btnOpen" class="pulse"><span class="lbl-long">Katmanlara ayır</span><span class="lbl-short">Ayır</span></button>
+      <button id="btnSpin"><span class="lbl-long">Döndür</span><span class="lbl-short">Döndür</span></button>
+      <button id="btnReset"><span class="lbl-long">Görünümü sıfırla</span><span class="lbl-short">Sıfırla</span></button>
     </div>
     <div class="hint">sürükle: döndür · tekerlek: yakınlaş</div>
 
@@ -225,12 +288,12 @@
    FİLİGRAN AYARLARI — sadece burayı değiştirin
    ============================================================ */
 const WM = {
-  marka:    "Watermark",              // köşedeki ana yazı
-  altYazi:  "Watermark",          // altındaki küçük satır
+  marka:    "WELLMATT",              // köşedeki ana yazı
+  altYazi:  "wellmatt.com",          // altındaki küçük satır
   kose:     true,                    // 3B sahneye gömülü köşe filigranı
   koseOpak: 0.42,                    // 0–1 arası görünürlük
-  desen:    true,                   // çapraz tekrarlı filigran (ekran görüntüsüne karşı)
-  desenOpak:0.15,
+  desen:    false,                   // çapraz tekrarlı filigran (ekran görüntüsüne karşı)
+  desenOpak:0.05,
   desenAci: -28                      // desen açısı (derece)
 };
 
@@ -382,18 +445,20 @@ function wmLayout(){
   const dist = 2;
   const vH = 2*Math.tan(camera.fov*Math.PI/360)*dist;
   const vW = vH*camera.aspect;
-  const pw = Math.min(vW*0.22, vH*0.9), ph = pw/4;
+  const pw = Math.min(vW*(camera.aspect < 1 ? 0.40 : 0.22), vH*0.9), ph = pw/4;
   wmMesh.scale.set(pw, pw, 1);
   wmMesh.position.set(vW/2 - pw/2 - vW*0.028, -vH/2 + ph/2 + vH*0.05, -dist);
 }
 
 /* ---- filigran: çapraz tekrarlı desen ---- */
 if(WM.desen){
-  const t = document.createElement("canvas"); t.width = 320; t.height = 190;
+  const small = matchMedia("(max-width:640px)").matches;
+  const t = document.createElement("canvas");
+  t.width = small ? 190 : 320; t.height = small ? 115 : 190;
   const g = t.getContext("2d");
-  g.translate(160, 95); g.rotate(WM.desenAci*Math.PI/180);
+  g.translate(t.width/2, t.height/2); g.rotate(WM.desenAci*Math.PI/180);
   g.textAlign = "center"; g.textBaseline = "middle";
-  g.font = "600 30px 'Bricolage Grotesque', Archivo, sans-serif";
+  g.font = "600 "+(small ? 17 : 30)+"px 'Bricolage Grotesque', Archivo, sans-serif";
   g.fillStyle = "rgba(23,35,61,1)";
   g.fillText(WM.marka, 0, 0);
   const el = document.getElementById("wmTile");
@@ -499,25 +564,34 @@ function applyOpen(t){
   const cx  = -W/2 + len/2;
   [front,back].forEach(m=>{ m.scale.x=len; m.position.x=cx; });
   pipes.forEach(p=>{ p.scale.x=len; p.position.x=cx; });
-  tag.visible = t > 0.15;
+  tag.visible = true;
   shadow.material.opacity = 1;
 }
 
 /* ============================================================
    KAMERA KONTROLÜ
    ============================================================ */
-const view = { az:-0.66, pol:1.02, rad:34, tx:-0.5, ty:1.45 };
+const view = { az:-0.66, pol:1.02, zoom:1 };
 const HOME = Object.assign({}, view);
+if(matchMedia("(max-width:640px)").matches){ view.pol = HOME.pol = 0.95; view.az = HOME.az = -0.74; }
 let spin=false, dragging=false, px=0, py=0, pinch=0;
 const target = new THREE.Vector3();
 
+/* modeli her ekran oranına sığdıran mesafe */
+function fitRadius(){
+  const R = 12.9 + 1.9*openT;                       // kapalı → açık sınır küresi
+  const fv = camera.fov*Math.PI/180;
+  const fh = 2*Math.atan(Math.tan(fv/2)*camera.aspect);
+  return (R / Math.sin(Math.min(fv,fh)/2)) * 0.71;
+}
 function updateCam(){
-  target.set(view.tx, view.ty, 0);
+  target.set(-0.5, 1.5 + 2.5*openT, 0);
+  const rad = fitRadius() * view.zoom;
   const sp = Math.sin(view.pol);
   camera.position.set(
-    target.x + view.rad*sp*Math.sin(view.az),
-    target.y + view.rad*Math.cos(view.pol),
-    target.z + view.rad*sp*Math.cos(view.az)
+    target.x + rad*sp*Math.sin(view.az),
+    target.y + rad*Math.cos(view.pol),
+    target.z + rad*sp*Math.cos(view.az)
   );
   camera.lookAt(target);
 }
@@ -532,11 +606,11 @@ canvas.addEventListener("pointermove", e=>{
   px=e.clientX; py=e.clientY;
 });
 ["pointerup","pointercancel","pointerleave"].forEach(ev=>canvas.addEventListener(ev, ()=>{dragging=false;canvas.classList.remove("dragging");}));
-canvas.addEventListener("wheel", e=>{ e.preventDefault(); view.rad = Math.max(16, Math.min(64, view.rad + e.deltaY*0.03)); }, {passive:false});
+canvas.addEventListener("wheel", e=>{ e.preventDefault(); view.zoom = Math.max(0.55, Math.min(1.9, view.zoom + e.deltaY*0.0012)); }, {passive:false});
 canvas.addEventListener("touchmove", e=>{
   if(e.touches.length===2){
     const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
-    if(pinch) view.rad = Math.max(16, Math.min(64, view.rad + (pinch-d)*0.06));
+    if(pinch) view.zoom = Math.max(0.55, Math.min(1.9, view.zoom + (pinch-d)*0.0035));
     pinch=d; e.preventDefault();
   }
 },{passive:false});
@@ -554,7 +628,7 @@ let active = null;
 LAYERS.forEach(L=>{
   const b=document.createElement("button");
   b.className="marker"; b.type="button"; b.setAttribute("aria-label", L.n+". katman: "+L.name);
-  b.innerHTML = L.n + '<span class="tip">'+L.name+'<span>'+L.mm+' mm</span></span>';
+  b.innerHTML = '<span class="dot">'+L.n+'</span><span class="tip">'+L.name+'<span>'+L.mm+' mm</span></span>';
   b.addEventListener("click", ()=>select(L.n));
   markersEl.appendChild(b); L.el=b; L.vec=new THREE.Vector3();
 
@@ -580,7 +654,8 @@ function select(n){
     L.mat.emissiveIntensity = on ? 0.16 : 0;
     L.mat.needsUpdate = true;
   });
-  if(active===null){ detail.classList.remove("show"); return; }
+  if(active===null){ detail.classList.remove("show"); document.body.classList.remove("detail-open"); return; }
+  if(openTarget < 0.5) btnOpen.click();      // kapalıyken katman seçilirse önce ayır
   const L = LAYERS[active-1];
   dNo.textContent = "0"+L.n+" / 06";
   dName.textContent = L.name;
@@ -588,17 +663,26 @@ function select(n){
   dDesc.textContent = L.desc;
   dChips.innerHTML = L.chips.map(c=>'<span class="chip">'+c+'</span>').join("");
   detail.classList.add("show");
+  document.body.classList.add("detail-open");
+  if(matchMedia("(max-width:640px)").matches) detail.scrollTop = 0;
 }
 document.getElementById("detailClose").addEventListener("click", ()=>select(active));
 
 /* toolbar */
 const btnOpen=document.getElementById("btnOpen"), btnSpin=document.getElementById("btnSpin"), btnReset=document.getElementById("btnReset");
 const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
-let openT = reduce?1:0, openTarget = 1;
+let openT = 0, openTarget = 0;
+function setOpenLabel(){
+  const on = openTarget > 0.5;
+  btnOpen.querySelector(".lbl-long").textContent  = on ? "Yatağı birleştir" : "Katmanlara ayır";
+  btnOpen.querySelector(".lbl-short").textContent = on ? "Birleştir" : "Ayır";
+}
 btnOpen.addEventListener("click", ()=>{
   openTarget = openTarget>0.5 ? 0 : 1;
   btnOpen.classList.toggle("on", openTarget>0.5);
-  btnOpen.textContent = openTarget>0.5 ? "Katmanları kapat" : "Katmanları aç";
+  btnOpen.classList.remove("pulse");
+  setOpenLabel();
+  if(openTarget<0.5 && active!==null) select(active);   // kapanırken seçimi bırak
 });
 btnSpin.addEventListener("click", ()=>{ spin=!spin; btnSpin.classList.toggle("on",spin); });
 btnReset.addEventListener("click", ()=>{ Object.assign(view,HOME); spin=false; btnSpin.classList.remove("on"); });
@@ -610,7 +694,6 @@ function resize(){
   const r = canvas.getBoundingClientRect();
   renderer.setSize(r.width, r.height, false);
   camera.aspect = r.width/Math.max(1,r.height);
-  view.rad = Math.max(view.rad, r.width<720 ? 46 : 30);
   camera.updateProjectionMatrix();
   wmLayout();
 }
@@ -628,12 +711,15 @@ function frame(ts){
   updateCam();
 
   const r = canvas.getBoundingClientRect();
+  const vis = Math.max(0, Math.min(1, (openT - 0.30) / 0.45));
   LAYERS.forEach(L=>{
     anchor(L, openT, L.vec).add(root.position);
     tmp.copy(L.vec).project(camera);
     const x = (tmp.x*0.5+0.5)*r.width, y = (-tmp.y*0.5+0.5)*r.height;
     L.el.style.transform = "translate("+x+"px,"+y+"px)";
-    L.el.style.opacity = tmp.z < 1 ? 1 : 0;
+    L.el.style.opacity = tmp.z < 1 ? vis : 0;
+    L.el.style.pointerEvents = vis > 0.6 ? "auto" : "none";
+    L.el.setAttribute("aria-hidden", vis > 0.6 ? "false" : "true");
   });
 
   renderer.render(scene, camera);
