@@ -145,6 +145,13 @@
   .panel-foot span{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:#8C95A3}
   .panel-foot strong{font-family:var(--mono);font-size:18px;font-weight:500;color:var(--navy)}
 
+  /* ---------- filigran ---------- */
+  #wmTile{
+    position:absolute;inset:0;z-index:5;pointer-events:none;display:none;
+    user-select:none;-webkit-user-select:none
+  }
+  #wmTile.on{display:block}
+
   #loading{
     position:absolute;inset:0;display:grid;place-items:center;z-index:9;
     font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#7D8798;
@@ -169,6 +176,7 @@
   <div id="stage">
     <canvas id="c"></canvas>
     <div id="markers"></div>
+    <div id="wmTile" aria-hidden="true"></div>
 
     <div class="titleblock">
       <p class="eyebrow">3B kesit · <b>Nova Hybrid 275</b></p>
@@ -212,6 +220,19 @@
 <script>
 (function(){
 "use strict";
+
+/* ============================================================
+   FİLİGRAN AYARLARI — sadece burayı değiştirin
+   ============================================================ */
+const WM = {
+  marka:    "Watermark",              // köşedeki ana yazı
+  altYazi:  "Watermark",          // altındaki küçük satır
+  kose:     true,                    // 3B sahneye gömülü köşe filigranı
+  koseOpak: 0.42,                    // 0–1 arası görünürlük
+  desen:    true,                   // çapraz tekrarlı filigran (ekran görüntüsüne karşı)
+  desenOpak:0.15,
+  desenAci: -28                      // desen açısı (derece)
+};
 
 /* ============================================================
    VERİ — katmanlar üstten alta
@@ -312,6 +333,74 @@ const fill = new THREE.DirectionalLight(0xdfe6f0, 0.34); fill.position.set(22,12
 const rim  = new THREE.DirectionalLight(0xffffff, 0.20); rim.position.set(8,6,26); scene.add(rim);
 
 const root = new THREE.Group(); scene.add(root);
+
+/* ---- filigran: 3B sahneye gömülü köşe markası ---- */
+let wmMesh = null;
+if(WM.kose){
+  const c = document.createElement("canvas"); c.width = 1024; c.height = 256;
+  const x = c.getContext("2d");
+  function drawWM(){
+    x.clearRect(0,0,1024,256);
+    x.textAlign = "right"; x.textBaseline = "middle"; x.lineJoin = "round";
+    const sp = 6; // harf aralığı
+    x.font = "600 92px 'Bricolage Grotesque', Archivo, sans-serif";
+    let w = 0; for(const ch of WM.marka) w += x.measureText(ch).width + sp;
+    let cx = 1010 - w + sp;
+    for(const ch of WM.marka){
+      const cw = x.measureText(ch).width;
+      x.strokeStyle = "rgba(255,255,255,.55)"; x.lineWidth = 6;
+      x.strokeText(ch, cx + cw, 96);
+      x.fillStyle = "#17233D";
+      x.fillText(ch, cx + cw, 96);
+      cx += cw + sp;
+    }
+    if(WM.altYazi){
+      x.font = "500 40px 'IBM Plex Mono', monospace";
+      x.strokeStyle = "rgba(255,255,255,.55)"; x.lineWidth = 5;
+      x.strokeText(WM.altYazi, 1010, 178);
+      x.fillStyle = "rgba(23,35,61,.72)";
+      x.fillText(WM.altYazi, 1010, 178);
+    }
+  }
+  drawWM();
+
+  const wmTex = new THREE.CanvasTexture(c);
+  wmTex.minFilter = THREE.LinearFilter;
+  if(document.fonts && document.fonts.ready){
+    document.fonts.ready.then(()=>{ drawWM(); wmTex.needsUpdate = true; });
+  }
+  wmMesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(1, 0.25),
+    new THREE.MeshBasicMaterial({map:wmTex, transparent:true, opacity:WM.koseOpak, depthTest:false, depthWrite:false})
+  );
+  wmMesh.renderOrder = 999;
+  camera.add(wmMesh);
+  scene.add(camera);
+}
+function wmLayout(){
+  if(!wmMesh) return;
+  const dist = 2;
+  const vH = 2*Math.tan(camera.fov*Math.PI/360)*dist;
+  const vW = vH*camera.aspect;
+  const pw = Math.min(vW*0.22, vH*0.9), ph = pw/4;
+  wmMesh.scale.set(pw, pw, 1);
+  wmMesh.position.set(vW/2 - pw/2 - vW*0.028, -vH/2 + ph/2 + vH*0.05, -dist);
+}
+
+/* ---- filigran: çapraz tekrarlı desen ---- */
+if(WM.desen){
+  const t = document.createElement("canvas"); t.width = 320; t.height = 190;
+  const g = t.getContext("2d");
+  g.translate(160, 95); g.rotate(WM.desenAci*Math.PI/180);
+  g.textAlign = "center"; g.textBaseline = "middle";
+  g.font = "600 30px 'Bricolage Grotesque', Archivo, sans-serif";
+  g.fillStyle = "rgba(23,35,61,1)";
+  g.fillText(WM.marka, 0, 0);
+  const el = document.getElementById("wmTile");
+  el.style.backgroundImage = "url("+t.toDataURL()+")";
+  el.style.opacity = WM.desenOpak;
+  el.classList.add("on");
+}
 
 /* zemin gölgesi */
 const shadow = new THREE.Mesh(
@@ -523,6 +612,7 @@ function resize(){
   camera.aspect = r.width/Math.max(1,r.height);
   view.rad = Math.max(view.rad, r.width<720 ? 46 : 30);
   camera.updateProjectionMatrix();
+  wmLayout();
 }
 addEventListener("resize", resize);
 
