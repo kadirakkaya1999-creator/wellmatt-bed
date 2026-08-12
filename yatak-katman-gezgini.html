@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Katman Katman — 3B Yatak Kesiti</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#17233D;
+    --navy-2:#0C1220;
+    --paper:#F6F5F2;
+    --steel:#C9CBD0;
+    --sky:#7FA9C9;
+    --foam:#EDDD87;
+    --line:rgba(23,35,61,.14);
+    --display:"Bricolage Grotesque","Archivo",system-ui,sans-serif;
+    --body:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+    --mono:"IBM Plex Mono",ui-monospace,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family:var(--body);
+    color:var(--navy-2);
+    background:
+      radial-gradient(120% 90% at 62% 18%, #E7E8EA 0%, #D6D8DC 45%, #BFC3CA 100%);
+    overflow:hidden;
+  }
+  #app{position:fixed;inset:0;display:grid;grid-template-columns:minmax(0,1fr) 320px}
+
+  /* ---------- stage ---------- */
+  #stage{position:relative;min-width:0}
+  canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+  canvas.dragging{cursor:grabbing}
+
+  .titleblock{position:absolute;top:28px;left:32px;max-width:min(46ch,52%);pointer-events:none;z-index:3}
+  .eyebrow{
+    font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase;
+    color:#5C6779;margin:0 0 10px
+  }
+  .eyebrow b{color:var(--navy);font-weight:500}
+  h1{
+    font-family:var(--display);font-weight:800;font-size:clamp(30px,3.4vw,50px);
+    line-height:.94;letter-spacing:-.025em;margin:0;color:var(--navy)
+  }
+  h1 em{font-style:normal;display:block;font-weight:400;color:#66707F}
+  .lede{margin:14px 0 0;font-size:14px;line-height:1.55;color:#4A5566;max-width:34ch}
+
+  /* ---------- 3D markers ---------- */
+  #markers{position:absolute;inset:0;z-index:2;pointer-events:none}
+  .marker{
+    position:absolute;left:0;top:0;pointer-events:auto;
+    width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;
+    display:grid;place-items:center;border:1.5px solid rgba(255,255,255,.7);
+    background:rgba(23,35,61,.66);backdrop-filter:blur(3px);
+    color:#fff;font-family:var(--mono);font-size:12px;font-weight:500;
+    cursor:pointer;transition:transform .18s cubic-bezier(.2,.8,.3,1),background .18s,box-shadow .18s;
+    box-shadow:0 3px 10px rgba(12,18,32,.28)
+  }
+  .marker:hover,.marker:focus-visible{background:var(--navy);transform:scale(1.18);outline:none;box-shadow:0 0 0 4px rgba(127,169,201,.45)}
+  .marker.on{background:var(--sky);border-color:#fff;transform:scale(1.22);box-shadow:0 0 0 5px rgba(127,169,201,.32)}
+  .marker .tip{
+    position:absolute;left:38px;top:50%;transform:translateY(-50%) translateX(-6px);
+    white-space:nowrap;background:rgba(12,18,32,.92);color:#fff;
+    padding:7px 11px;border-radius:7px;font-family:var(--body);font-size:12.5px;font-weight:500;
+    opacity:0;pointer-events:none;transition:opacity .16s,transform .16s
+  }
+  .marker .tip span{font-family:var(--mono);color:var(--foam);margin-left:7px}
+  .marker:hover .tip,.marker.on .tip{opacity:1;transform:translateY(-50%) translateX(0)}
+
+  /* ---------- detail card ---------- */
+  #detail{
+    position:absolute;left:32px;bottom:96px;width:min(370px,42vw);z-index:3;
+    background:rgba(255,255,255,.82);backdrop-filter:blur(14px);
+    border:1px solid rgba(255,255,255,.9);border-radius:3px;
+    box-shadow:0 18px 44px rgba(23,35,61,.16);
+    padding:20px 22px 22px;
+    transform:translateY(10px);opacity:0;transition:opacity .3s,transform .3s;pointer-events:none
+  }
+  #detail.show{opacity:1;transform:none;pointer-events:auto}
+  #detail .no{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:#7D8798}
+  #detail h2{font-family:var(--display);font-size:24px;letter-spacing:-.02em;margin:6px 0 2px;color:var(--navy);font-weight:600}
+  #detail .mm{font-family:var(--mono);font-size:13px;color:#5C6779}
+  #detail p{font-size:13.5px;line-height:1.6;color:#3E4859;margin:12px 0 14px}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;padding:5px 9px;border:1px solid var(--line);border-radius:2px;color:#4A5566}
+  .close{position:absolute;top:14px;right:14px;border:0;background:none;cursor:pointer;color:#8C95A3;font-size:17px;line-height:1;padding:4px}
+  .close:hover{color:var(--navy)}
+
+  /* ---------- toolbar ---------- */
+  #toolbar{
+    position:absolute;left:50%;bottom:26px;transform:translateX(-50%);z-index:3;
+    display:flex;gap:6px;padding:6px;border-radius:2px;
+    background:rgba(255,255,255,.72);backdrop-filter:blur(12px);
+    border:1px solid rgba(255,255,255,.85);box-shadow:0 10px 26px rgba(23,35,61,.14)
+  }
+  #toolbar button{
+    font-family:var(--body);font-size:12.5px;font-weight:500;color:#3E4859;
+    background:none;border:0;padding:9px 15px;border-radius:2px;cursor:pointer;transition:background .15s,color .15s
+  }
+  #toolbar button:hover{background:rgba(23,35,61,.07)}
+  #toolbar button.on{background:var(--navy);color:#fff}
+  #toolbar button:focus-visible{outline:2px solid var(--sky);outline-offset:1px}
+  .hint{
+    position:absolute;left:50%;bottom:8px;transform:translateX(-50%);z-index:3;
+    font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#7D8798
+  }
+
+  /* ---------- ruler panel ---------- */
+  #panel{
+    background:var(--paper);border-left:1px solid var(--line);
+    display:flex;flex-direction:column;min-height:0;z-index:4
+  }
+  .panel-head{padding:24px 22px 14px;border-bottom:1px solid var(--line)}
+  .panel-head h3{font-family:var(--display);font-size:15px;font-weight:600;letter-spacing:-.01em;margin:0;color:var(--navy)}
+  .panel-head p{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:#8C95A3;margin:7px 0 0}
+  .ruler{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column;padding:14px 0}
+  .band{
+    display:grid;grid-template-columns:34px 1fr auto;align-items:center;gap:12px;
+    padding:0 20px;border:0;background:none;width:100%;text-align:left;cursor:pointer;
+    font-family:var(--body);color:inherit;position:relative;transition:background .16s
+  }
+  .band:hover{background:rgba(23,35,61,.045)}
+  .band.on{background:rgba(127,169,201,.16)}
+  .band:focus-visible{outline:2px solid var(--sky);outline-offset:-2px}
+  .band .idx{font-family:var(--mono);font-size:11px;color:#8C95A3}
+  .band.on .idx{color:var(--navy)}
+  .band .swatch{
+    position:absolute;left:0;top:0;bottom:0;width:5px
+  }
+  .band .nm{font-size:13px;font-weight:500;color:#2C3646;line-height:1.25}
+  .band .mm{font-family:var(--mono);font-size:11.5px;color:#6B7583}
+  .band .bar{
+    grid-column:1/-1;height:var(--h);border-radius:1px;margin:7px 0 9px;
+    background:var(--c);border:1px solid rgba(23,35,61,.12)
+  }
+  .panel-foot{
+    border-top:1px solid var(--line);padding:14px 22px 18px;
+    display:flex;justify-content:space-between;align-items:baseline
+  }
+  .panel-foot span{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:#8C95A3}
+  .panel-foot strong{font-family:var(--mono);font-size:18px;font-weight:500;color:var(--navy)}
+
+  #loading{
+    position:absolute;inset:0;display:grid;place-items:center;z-index:9;
+    font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:#7D8798;
+    transition:opacity .5s
+  }
+
+  @media (max-width:900px){
+    #app{grid-template-columns:1fr;grid-template-rows:1fr auto}
+    #panel{border-left:0;border-top:1px solid var(--line);max-height:38vh}
+    .titleblock{top:18px;left:18px;max-width:70%}
+    h1{font-size:26px}
+    .lede{display:none}
+    #detail{left:14px;right:14px;bottom:80px;width:auto}
+    .ruler{padding:8px 0}
+    .hint{display:none}
+    #toolbar{bottom:14px}
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="c"></canvas>
+    <div id="markers"></div>
+
+    <div class="titleblock">
+      <p class="eyebrow">3B kesit · <b>Nova Hybrid 275</b></p>
+      <h1>Katman katman<em>ne uyuduğunuzu görün</em></h1>
+      <p class="lede">Numaralı noktalara dokunun; her katmanın malzemesini, kalınlığını ve ne işe yaradığını açar. Sahneyi sürükleyerek döndürün.</p>
+    </div>
+
+    <div id="detail" role="dialog" aria-live="polite">
+      <button class="close" id="detailClose" aria-label="Katman detayını kapat">✕</button>
+      <div class="no" id="dNo">01</div>
+      <h2 id="dName">—</h2>
+      <div class="mm" id="dMm">—</div>
+      <p id="dDesc">—</p>
+      <div class="chips" id="dChips"></div>
+    </div>
+
+    <div id="toolbar">
+      <button id="btnOpen" class="on">Katmanları kapat</button>
+      <button id="btnSpin">Döndür</button>
+      <button id="btnReset">Görünümü sıfırla</button>
+    </div>
+    <div class="hint">sürükle: döndür · tekerlek: yakınlaş</div>
+
+    <div id="loading">Sahne hazırlanıyor</div>
+  </div>
+
+  <aside id="panel">
+    <div class="panel-head">
+      <h3>Ölçü cetveli</h3>
+      <p>Kalınlıklar gerçek oranında</p>
+    </div>
+    <div class="ruler" id="ruler"></div>
+    <div class="panel-foot">
+      <span>Toplam yükseklik</span>
+      <strong id="total">275 mm</strong>
+    </div>
+  </aside>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+"use strict";
+
+/* ============================================================
+   VERİ — katmanlar üstten alta
+   ============================================================ */
+const LAYERS = [
+  { n:1, name:"Kapitone yüzey kumaşı", mm:25,  h:0.36, color:0xF7F7F4, tex:"quilt",
+    desc:"Nem emici örme kumaş, elyaf dolguyla birlikte kapitone dikilir. Yüzeyi serin tutar, terlemeyi azaltır.",
+    chips:["Örme kumaş","Fermuarlı kılıf","30°C yıkama"], x0:-1.0, k:0.150 },
+  { n:2, name:"Polyester elyaf",       mm:15,  h:0.26, color:0xE3DCCB, tex:"fiber",
+    desc:"Kumaş ile süngerler arasında yumuşak geçiş sağlar; kapitone deseninin hacmini verir.",
+    chips:["Silikonlu elyaf","Anti-alerjik"], x0:0.5, k:0.135 },
+  { n:3, name:"Visco (hafızalı) sünger", mm:40, h:0.46, color:0xA9A392, tex:"foam",
+    desc:"Vücut ısısıyla yumuşayıp hatlarınıza oturur. Omuz ve kalça gibi basınç noktalarındaki yükü yayar.",
+    chips:["50 kg/m³","Açık hücreli","CertiPUR-US"], x0:2.0, k:0.115 },
+  { n:4, name:"Yüksek yoğunluklu sünger", mm:30, h:0.38, color:0xEDDD87, tex:"foam",
+    desc:"Taşıyıcı ara katman. Viscoyu yaylardan ayırır, kenarlarda oturma desteğini artırır.",
+    chips:["35 kg/m³","Taşıyıcı katman"], x0:3.5, k:0.095 },
+  { n:5, name:"Torbalı yay ünitesi",    mm:160, h:1.60, color:0xF2F3F5, tex:"none",
+    desc:"Her yay ayrı keçe torbada çalışır. Yanınızdaki kişi döndüğünde hareket size taşınmaz; sırt bölgesi ayrı ayrı desteklenir.",
+    chips:["Ø 6 cm yay","7 bölge","1,9 mm çelik"], x0:null, k:0 },
+  { n:6, name:"Keçe ve taban kumaşı",   mm:5,   h:0.20, color:0x1A2740, tex:"none",
+    desc:"Yayları alttan izole eder, sürtünmeyi ve sesi keser. Kaymaz dokusu yatağı baza üzerinde sabit tutar.",
+    chips:["Kaymaz taban","İğneli keçe"], x0:null, k:0 }
+];
+const W = 20, D = 16;                     // yatak eni / boyu (birim = 100 mm)
+const OPEN_END_X = -1.2;                  // açıkken lacivert kenar bandının bittiği yer
+
+/* yükseklik yığını (alttan üste) */
+let acc = 0;
+for (let i = LAYERS.length - 1; i >= 0; i--) { LAYERS[i].y0 = acc; acc += LAYERS[i].h; LAYERS[i].y1 = acc; }
+const TOTAL_H = acc;
+
+/* ============================================================
+   DOKULAR
+   ============================================================ */
+function cv(s){ const c=document.createElement("canvas"); c.width=c.height=s; return c; }
+function texQuilt(){
+  const c=cv(512), x=c.getContext("2d");
+  x.fillStyle="#FAFAF8"; x.fillRect(0,0,512,512);
+  const g=x.createLinearGradient(0,0,512,512); g.addColorStop(0,"rgba(0,0,0,0)"); g.addColorStop(1,"rgba(23,35,61,.05)");
+  x.fillStyle=g; x.fillRect(0,0,512,512);
+  x.strokeStyle="rgba(23,35,61,.16)"; x.lineWidth=2.5; x.setLineDash([9,7]);
+  for(let i=-512;i<=1024;i+=128){
+    x.beginPath(); x.moveTo(i,0); x.lineTo(i+512,512); x.stroke();
+    x.beginPath(); x.moveTo(i,512); x.lineTo(i+512,0); x.stroke();
+  }
+  x.setLineDash([]);
+  for(let a=0;a<=512;a+=128) for(let b=0;b<=512;b+=128){
+    x.beginPath(); x.arc(a+64,b+64,4,0,7); x.fillStyle="rgba(23,35,61,.22)"; x.fill();
+  }
+  const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(5,4); return t;
+}
+function texFiber(){
+  const c=cv(256), x=c.getContext("2d");
+  x.fillStyle="#E7E1D2"; x.fillRect(0,0,256,256);
+  for(let i=0;i<2600;i++){
+    x.fillStyle = i%3 ? "rgba(150,140,115,.20)" : "rgba(255,255,255,.55)";
+    x.fillRect(Math.random()*256, Math.random()*256, 2.2, 1);
+  }
+  const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(8,6); return t;
+}
+function texFoam(){
+  const c=cv(256), x=c.getContext("2d");
+  x.fillStyle="#ffffff"; x.fillRect(0,0,256,256);
+  for(let i=0;i<3000;i++){
+    x.beginPath(); x.arc(Math.random()*256,Math.random()*256,Math.random()*2.2+.6,0,7);
+    x.fillStyle="rgba(0,0,0,"+(Math.random()*.07)+")"; x.fill();
+  }
+  const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(7,5); return t;
+}
+function texNavy(){
+  const c=cv(256), x=c.getContext("2d");
+  x.fillStyle="#17233D"; x.fillRect(0,0,256,256);
+  x.strokeStyle="rgba(255,255,255,.09)"; x.lineWidth=2;
+  for(let i=0;i<=256;i+=64){ x.beginPath();x.moveTo(i,0);x.lineTo(i,256);x.stroke(); x.beginPath();x.moveTo(0,i);x.lineTo(256,i);x.stroke(); }
+  const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.repeat.set(9,2); return t;
+}
+function texShadow(){
+  const c=cv(256), x=c.getContext("2d");
+  const g=x.createRadialGradient(128,128,10,128,128,124);
+  g.addColorStop(0,"rgba(30,40,60,.42)"); g.addColorStop(.55,"rgba(30,40,60,.18)"); g.addColorStop(1,"rgba(30,40,60,0)");
+  x.fillStyle=g; x.fillRect(0,0,256,256);
+  return new THREE.CanvasTexture(c);
+}
+
+/* ============================================================
+   SAHNE
+   ============================================================ */
+const canvas = document.getElementById("c");
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true, alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(34, 1, 0.1, 400);
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0x9aa3b0, 0.85));
+const key = new THREE.DirectionalLight(0xffffff, 0.72); key.position.set(-14,26,20); scene.add(key);
+const fill = new THREE.DirectionalLight(0xdfe6f0, 0.34); fill.position.set(22,12,-16); scene.add(fill);
+const rim  = new THREE.DirectionalLight(0xffffff, 0.20); rim.position.set(8,6,26); scene.add(rim);
+
+const root = new THREE.Group(); scene.add(root);
+
+/* zemin gölgesi */
+const shadow = new THREE.Mesh(
+  new THREE.PlaneGeometry(W*1.9, D*2.1),
+  new THREE.MeshBasicMaterial({map:texShadow(), transparent:true, depthWrite:false})
+);
+shadow.rotation.x = -Math.PI/2; shadow.position.set(-1.5,-0.03,0); root.add(shadow);
+
+/* ---- katman gövdeleri ---- */
+const QUILT = texQuilt(), FIBER = texFiber(), FOAM = texFoam(), NAVY = texNavy();
+LAYERS.forEach(L=>{
+  const seg = (L.x0===null) ? 1 : 150;
+  const geo = new THREE.BoxGeometry(W, L.h, D, seg, 1, 1);
+  L.base = geo.attributes.position.array.slice(0);
+  let map=null;
+  if(L.tex==="quilt") map=QUILT; else if(L.tex==="fiber") map=FIBER; else if(L.tex==="foam") map=FOAM;
+  const mat = new THREE.MeshStandardMaterial({
+    color:L.color, map:map, roughness:L.tex==="foam"?0.95:0.82, metalness:0,
+    emissive:0x7FA9C9, emissiveIntensity:0
+  });
+  const m = new THREE.Mesh(geo, mat);
+  m.position.y = (L.y0 + L.y1)/2;
+  L.mesh = m; L.mat = mat; L.geo = geo;
+  if(L.n!==5) root.add(m); else { m.visible=false; root.add(m); }  // yay katmanı gövdesi gizli, yaylar ayrı
+});
+
+/* ---- torbalı yaylar ---- */
+const springL = LAYERS[4];
+const coilGeo = new THREE.CylinderGeometry(0.42,0.42, springL.h*0.98, 14, 1, true);
+const coilMat = new THREE.MeshStandardMaterial({color:0xF4F5F7, roughness:0.95, metalness:0, side:THREE.DoubleSide,
+  emissive:0x7FA9C9, emissiveIntensity:0});
+const nx=19, nz=15, count=nx*nz;
+const coils = new THREE.InstancedMesh(coilGeo, coilMat, count);
+const dummy = new THREE.Object3D(); let idx=0;
+for(let i=0;i<nx;i++) for(let j=0;j<nz;j++){
+  dummy.position.set(-W/2+0.55+i*((W-1.1)/(nx-1)), (springL.y0+springL.y1)/2, -D/2+0.55+j*((D-1.1)/(nz-1)));
+  dummy.rotation.y = Math.random()*0.5; dummy.updateMatrix(); coils.setMatrixAt(idx++, dummy.matrix);
+}
+root.add(coils);
+springL.mat = coilMat;
+/* yay ünitesinin üst/alt keçesi */
+const feltMat = new THREE.MeshStandardMaterial({color:0xEDEFF2, roughness:1});
+[springL.y0+0.02, springL.y1-0.02].forEach(y=>{
+  const f = new THREE.Mesh(new THREE.BoxGeometry(W-0.9,0.04,D-0.9), feltMat);
+  f.position.y=y; root.add(f);
+});
+
+/* ---- lacivert kenar bandı + beyaz biye ---- */
+const bandMat = new THREE.MeshStandardMaterial({color:0xffffff, map:NAVY, roughness:0.9});
+const pipeMat = new THREE.MeshStandardMaterial({color:0xF3F4F6, roughness:0.7});
+const band = new THREE.Group(); root.add(band);
+const bandH = TOTAL_H;
+function panel(w,h,d){ return new THREE.Mesh(new THREE.BoxGeometry(w,h,d), bandMat); }
+const front = panel(1,bandH,0.14); front.position.set(0,bandH/2, D/2+0.05); band.add(front);
+const back  = panel(1,bandH,0.14); back.position.set(0,bandH/2,-D/2-0.05); band.add(back);
+const capL  = new THREE.Mesh(new THREE.BoxGeometry(0.14,bandH,D+0.24), bandMat); capL.position.set(-W/2-0.05,bandH/2,0); band.add(capL);
+const pipes = [];
+[[D/2+0.06, bandH-0.03],[ -D/2-0.06, bandH-0.03],[D/2+0.06,0.05],[-D/2-0.06,0.05]].forEach(([z,y])=>{
+  const p = new THREE.Mesh(new THREE.BoxGeometry(1,0.09,0.12), pipeMat); p.position.set(0,y,z); band.add(p); pipes.push(p);
+});
+const capPipeT = new THREE.Mesh(new THREE.BoxGeometry(0.12,0.09,D+0.26), pipeMat); capPipeT.position.set(-W/2-0.06,bandH-0.03,0); band.add(capPipeT);
+const capPipeB = capPipeT.clone(); capPipeB.position.y=0.05; band.add(capPipeB);
+/* küçük marka etiketi */
+const tag = new THREE.Mesh(new THREE.BoxGeometry(0.9,0.5,0.05), new THREE.MeshStandardMaterial({color:0xB9C4D4,roughness:.6}));
+tag.position.set(-W/2+3.2, bandH*0.42, D/2+0.14); band.add(tag);
+
+/* ============================================================
+   BÜKME (peel) — açılma miktarı t ile
+   ============================================================ */
+function bend(L, t){
+  if(L.x0===null) return;
+  const p = L.geo.attributes.position, arr = L.base, k = L.k * t;
+  for(let i=0;i<p.count;i++){
+    const x=arr[i*3], y=arr[i*3+1], z=arr[i*3+2];
+    if(x<=L.x0 || k<1e-4){ p.setXYZ(i,x,y,z); continue; }
+    const s=x-L.x0, a=k*s, cx=L.x0+Math.sin(a)/k, cy=(1-Math.cos(a))/k;
+    p.setXYZ(i, cx - y*Math.sin(a), cy + y*Math.cos(a), z);
+  }
+  p.needsUpdate = true;
+  L.geo.computeVertexNormals();
+}
+/* işaret noktasının 3B konumu */
+function anchor(L, t, out){
+  if(L.x0===null){ out.set(L.aX, L.y1+0.05, D/2+0.25); return out; }
+  const k=L.k*t, s=0.9, y=L.h/2, yc=(L.y0+L.y1)/2;
+  if(k<1e-4){ out.set(L.x0+s, yc+y, D/2+0.25); return out; }
+  const a=k*s, cx=L.x0+Math.sin(a)/k, cy=(1-Math.cos(a))/k;
+  out.set(cx - y*Math.sin(a), yc + cy + y*Math.cos(a), D/2+0.25);
+  return out;
+}
+LAYERS[4].aX = 6.0; LAYERS[5].aX = 8.4;
+
+function applyOpen(t){
+  LAYERS.forEach(L=>bend(L,t));
+  const len = W - (W/2 - OPEN_END_X)*t;      // 20 → 8.8
+  const cx  = -W/2 + len/2;
+  [front,back].forEach(m=>{ m.scale.x=len; m.position.x=cx; });
+  pipes.forEach(p=>{ p.scale.x=len; p.position.x=cx; });
+  tag.visible = t > 0.15;
+  shadow.material.opacity = 1;
+}
+
+/* ============================================================
+   KAMERA KONTROLÜ
+   ============================================================ */
+const view = { az:-0.66, pol:1.02, rad:34, tx:-0.5, ty:1.45 };
+const HOME = Object.assign({}, view);
+let spin=false, dragging=false, px=0, py=0, pinch=0;
+const target = new THREE.Vector3();
+
+function updateCam(){
+  target.set(view.tx, view.ty, 0);
+  const sp = Math.sin(view.pol);
+  camera.position.set(
+    target.x + view.rad*sp*Math.sin(view.az),
+    target.y + view.rad*Math.cos(view.pol),
+    target.z + view.rad*sp*Math.cos(view.az)
+  );
+  camera.lookAt(target);
+}
+canvas.addEventListener("pointerdown", e=>{
+  dragging=true; px=e.clientX; py=e.clientY; canvas.classList.add("dragging");
+  canvas.setPointerCapture(e.pointerId); spin=false; btnSpin.classList.remove("on");
+});
+canvas.addEventListener("pointermove", e=>{
+  if(!dragging) return;
+  view.az -= (e.clientX-px)*0.006;
+  view.pol = Math.max(0.18, Math.min(1.48, view.pol - (e.clientY-py)*0.005));
+  px=e.clientX; py=e.clientY;
+});
+["pointerup","pointercancel","pointerleave"].forEach(ev=>canvas.addEventListener(ev, ()=>{dragging=false;canvas.classList.remove("dragging");}));
+canvas.addEventListener("wheel", e=>{ e.preventDefault(); view.rad = Math.max(16, Math.min(64, view.rad + e.deltaY*0.03)); }, {passive:false});
+canvas.addEventListener("touchmove", e=>{
+  if(e.touches.length===2){
+    const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+    if(pinch) view.rad = Math.max(16, Math.min(64, view.rad + (pinch-d)*0.06));
+    pinch=d; e.preventDefault();
+  }
+},{passive:false});
+canvas.addEventListener("touchend", ()=>pinch=0);
+
+/* ============================================================
+   İŞARETÇİLER + PANEL
+   ============================================================ */
+const markersEl = document.getElementById("markers");
+const rulerEl = document.getElementById("ruler");
+const detail = document.getElementById("detail");
+const hex = n => "#"+n.toString(16).padStart(6,"0");
+let active = null;
+
+LAYERS.forEach(L=>{
+  const b=document.createElement("button");
+  b.className="marker"; b.type="button"; b.setAttribute("aria-label", L.n+". katman: "+L.name);
+  b.innerHTML = L.n + '<span class="tip">'+L.name+'<span>'+L.mm+' mm</span></span>';
+  b.addEventListener("click", ()=>select(L.n));
+  markersEl.appendChild(b); L.el=b; L.vec=new THREE.Vector3();
+
+  const r=document.createElement("button");
+  r.className="band"; r.type="button";
+  r.innerHTML =
+    '<span class="swatch" style="background:'+(L.n===6?"#1A2740":hex(L.color))+'"></span>'+
+    '<span class="idx">0'+L.n+'</span>'+
+    '<span class="nm">'+L.name+'</span>'+
+    '<span class="mm">'+L.mm+' mm</span>'+
+    '<span class="bar" style="--h:'+Math.max(4, L.mm*0.42)+'px;--c:'+hex(L.color)+'"></span>';
+  r.addEventListener("click", ()=>select(L.n));
+  rulerEl.appendChild(r); L.row=r;
+});
+document.getElementById("total").textContent = LAYERS.reduce((s,l)=>s+l.mm,0)+" mm";
+
+function select(n){
+  active = (active===n) ? null : n;
+  LAYERS.forEach(L=>{
+    const on = L.n===active;
+    L.el.classList.toggle("on", on);
+    L.row.classList.toggle("on", on);
+    L.mat.emissiveIntensity = on ? 0.16 : 0;
+    L.mat.needsUpdate = true;
+  });
+  if(active===null){ detail.classList.remove("show"); return; }
+  const L = LAYERS[active-1];
+  dNo.textContent = "0"+L.n+" / 06";
+  dName.textContent = L.name;
+  dMm.textContent = L.mm+" mm kalınlık";
+  dDesc.textContent = L.desc;
+  dChips.innerHTML = L.chips.map(c=>'<span class="chip">'+c+'</span>').join("");
+  detail.classList.add("show");
+}
+document.getElementById("detailClose").addEventListener("click", ()=>select(active));
+
+/* toolbar */
+const btnOpen=document.getElementById("btnOpen"), btnSpin=document.getElementById("btnSpin"), btnReset=document.getElementById("btnReset");
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+let openT = reduce?1:0, openTarget = 1;
+btnOpen.addEventListener("click", ()=>{
+  openTarget = openTarget>0.5 ? 0 : 1;
+  btnOpen.classList.toggle("on", openTarget>0.5);
+  btnOpen.textContent = openTarget>0.5 ? "Katmanları kapat" : "Katmanları aç";
+});
+btnSpin.addEventListener("click", ()=>{ spin=!spin; btnSpin.classList.toggle("on",spin); });
+btnReset.addEventListener("click", ()=>{ Object.assign(view,HOME); spin=false; btnSpin.classList.remove("on"); });
+
+/* ============================================================
+   DÖNGÜ
+   ============================================================ */
+function resize(){
+  const r = canvas.getBoundingClientRect();
+  renderer.setSize(r.width, r.height, false);
+  camera.aspect = r.width/Math.max(1,r.height);
+  view.rad = Math.max(view.rad, r.width<720 ? 46 : 30);
+  camera.updateProjectionMatrix();
+}
+addEventListener("resize", resize);
+
+const tmp = new THREE.Vector3();
+let last = 0;
+function frame(ts){
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (ts-last)/1000 || 0.016); last = ts;
+
+  const d = openTarget - openT;
+  if(Math.abs(d) > 0.0008){ openT += d * Math.min(1, dt*(reduce?12:3.2)); applyOpen(openT); }
+  if(spin) view.az += dt*0.28;
+  updateCam();
+
+  const r = canvas.getBoundingClientRect();
+  LAYERS.forEach(L=>{
+    anchor(L, openT, L.vec).add(root.position);
+    tmp.copy(L.vec).project(camera);
+    const x = (tmp.x*0.5+0.5)*r.width, y = (-tmp.y*0.5+0.5)*r.height;
+    L.el.style.transform = "translate("+x+"px,"+y+"px)";
+    L.el.style.opacity = tmp.z < 1 ? 1 : 0;
+  });
+
+  renderer.render(scene, camera);
+}
+
+applyOpen(openT);
+resize();
+requestAnimationFrame(frame);
+setTimeout(()=>{ const l=document.getElementById("loading"); l.style.opacity=0; setTimeout(()=>l.remove(),600); }, 350);
+})();
+</script>
+</body>
+</html>
